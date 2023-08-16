@@ -14,7 +14,7 @@
 class CalyxPrimitive<string mnemonic, list<Trait> traits = []> :
   CalyxCell<mnemonic, traits> {
     let assemblyFormat = "$sym_name attr-dict `:` qualified(type(results))";
-    let arguments = (ins SymbolNameAttr:$sym_name);
+    let arguments = (ins SymbolNameAttr:$sym_name, DefaultValuedAttr<BoolAttr, "false">:$ref);
     let skipDefaultBuilders = 1;
 }
 

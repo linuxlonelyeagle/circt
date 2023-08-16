@@ -2597,18 +2597,41 @@ parseParameterList(OpAsmParser &parser, OperationState &result,
                                         parseType);
 }
 
+ParseResult parseReferenceList(OpAsmParser &parser, SmallVectorImpl<Attribute> &referenceList, SmallVectorImpl<Attribute> &targetList) {
+  if (parser.parseOptionalLSquare())
+    return success();
+  StringAttr reference;
+  StringAttr target;
+  auto parseRefList = [&]() -> ParseResult {
+    if (parser.parseSymbolName(reference) || parser.parseEqual() || parser.parseSymbolName(target))
+      return failure();
+    referenceList.push_back(reference);
+    targetList.push_back(target); 
+    return success();
+  };
+  if (parser.parseCommaSeparatedList(OpAsmParser::Delimiter::None, parseRefList))
+    return failure();
+  return parser.parseRSquare();
+}
+
 ParseResult InvokeOp::parse(OpAsmParser &parser, OperationState &result) {
   StringAttr componentName;
   SmallVector<OpAsmParser::UnresolvedOperand, 4> ports;
   SmallVector<OpAsmParser::UnresolvedOperand, 4> inputs;
   SmallVector<Attribute> portNames;
   SmallVector<Attribute> inputNames;
+  SmallVector<Attribute> referenceList;
+  SmallVector<Attribute> targetList;
   SmallVector<Type, 4> types;
   if (parser.parseSymbolName(componentName))
     return failure();
   FlatSymbolRefAttr callee = FlatSymbolRefAttr::get(componentName);
   SMLoc loc = parser.getCurrentLocation();
   result.addAttribute("callee", callee);
+  
+  if (parseReferenceList(parser, referenceList, targetList))
+    return failure();
+  
   if (parseParameterList(parser, result, ports, inputs, portNames, inputNames,
                          types))
     return failure();
@@ -2620,13 +2643,28 @@ ParseResult InvokeOp::parse(OpAsmParser &parser, OperationState &result) {
                       ArrayAttr::get(parser.getContext(), portNames));
   result.addAttribute("inputNames",
                       ArrayAttr::get(parser.getContext(), inputNames));
+  result.addAttribute("referenceList", ArrayAttr::get(parser.getContext(), referenceList));
+  result.addAttribute("targetList", ArrayAttr::get(parser.getContext(), targetList));
   return success();
 }
 
-void InvokeOp::print(OpAsmPrinter &p) {
-  p << " @" << getCallee() << "(";
+void InvokeOp::print(OpAsmPrinter &p) {  
   auto ports = getPorts();
   auto inputs = getInputs();
+  auto referenceList = getReferenceList();
+  auto targetList = getTargetList();
+
+  p << " @" << getCallee();
+  if (!referenceList.empty()) {
+    p << "[";
+    llvm::interleaveComma(llvm::zip(referenceList, targetList), p, [&](auto arg) {
+      StringAttr reference = cast<StringAttr>(std::get<0>(arg));
+      StringAttr target = cast<StringAttr>(std::get<1>(arg));
+      p << "@" << reference.getValue() << " = @" << target.getValue();
+    });
+    p << "]";
+  }
+  p << "(";
   llvm::interleaveComma(llvm::zip(ports, inputs), p, [&](auto arg) {
     p << std::get<0>(arg) << " = " << std::get<1>(arg);
   });

@@ -304,7 +304,8 @@ def InstanceOp : CalyxCell<"instance", [
 
   let arguments = (ins
     SymbolNameAttr:$sym_name,
-    FlatSymbolRefAttr:$componentName
+    FlatSymbolRefAttr:$componentName, 
+    DefaultValuedAttr<BoolAttr, "false">:$ref
   );
   let results = (outs Variadic<AnyType>:$results);
 
@@ -334,7 +335,8 @@ def PrimitiveOp : CalyxCell<"primitive", [
   let arguments = (ins
     SymbolNameAttr:$sym_name,
     OptionalAttr<ParamDeclArrayAttr>:$parameters,
-    FlatSymbolRefAttr:$primitiveName
+    FlatSymbolRefAttr:$primitiveName,
+    DefaultValuedAttr<BoolAttr, "false">:$ref
   );
   let results = (outs Variadic<AnyType>:$results);
 
