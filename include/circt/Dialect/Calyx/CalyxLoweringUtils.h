@@ -27,6 +27,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/ADT/StringMap.h"
 
 #include <variant>
 
@@ -393,6 +394,10 @@ public:
   /// Get the output port index of this component for which the funcReturnIdx of
   /// the original function maps to.
   unsigned getFuncOpResultMapping(unsigned funcReturnIdx);
+  
+  InstanceOp getInstance(StringRef calleeName);
+
+  void addInstance(StringRef calleeName, InstanceOp instanceOp);
 
   /// Return the group which evaluates the value v. Optionally, caller may
   /// specify the expected type of the group.
@@ -452,6 +457,8 @@ private:
   /// A mapping between the source funcOp result indices and the corresponding
   /// output port indices of this componentOp.
   DenseMap<unsigned, unsigned> funcOpResultMapping;
+
+  llvm::StringMap<calyx::InstanceOp> instanceMap;
 };
 
 /// An interface for conversion passes that lower Calyx programs. This handles
@@ -733,6 +740,17 @@ class BuildReturnRegs : public calyx::FuncOpPartialLoweringPattern {
   partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
                            PatternRewriter &rewriter) const override;
 };
+
+class BuildCallInstance : public calyx::FuncOpPartialLoweringPattern {
+  using FuncOpPartialLoweringPattern::FuncOpPartialLoweringPattern;
+
+  LogicalResult
+  partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
+                           PatternRewriter &rewriter) const override;
+  ComponentOp
+  getCallComponent(mlir::func::CallOp callOp) const;
+};
+
 
 } // namespace calyx
 } // namespace circt

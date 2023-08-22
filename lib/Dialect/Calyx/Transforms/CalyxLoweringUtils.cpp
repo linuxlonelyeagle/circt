@@ -397,6 +397,14 @@ unsigned ComponentLoweringStateInterface::getFuncOpResultMapping(
   return it->second;
 }
 
+InstanceOp ComponentLoweringStateInterface::getInstance(StringRef calleeName) {
+  return instanceMap[calleeName];
+}
+
+void ComponentLoweringStateInterface::addInstance(StringRef calleeName, InstanceOp instanceOp) {
+  instanceMap[calleeName] = instanceOp;
+}
+
 //===----------------------------------------------------------------------===//
 // CalyxLoweringState
 //===----------------------------------------------------------------------===//
@@ -633,7 +641,7 @@ void InlineCombGroups::recurseInlineCombGroups(
         isa<calyx::RegisterOp, calyx::MemoryOp, calyx::SeqMemoryOp,
             hw::ConstantOp, mlir::arith::ConstantOp, calyx::MultPipeLibOp,
             calyx::DivUPipeLibOp, calyx::DivSPipeLibOp, calyx::RemSPipeLibOp,
-            calyx::RemUPipeLibOp, mlir::scf::WhileOp>(src.getDefiningOp()))
+            calyx::RemUPipeLibOp, mlir::scf::WhileOp, calyx::InstanceOp>(src.getDefiningOp()))
       continue;
 
     auto srcCombGroup = dyn_cast<calyx::CombGroupOp>(
@@ -742,6 +750,51 @@ BuildReturnRegs::partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
         reg.getOut());
   }
   return success();
+}
+
+LogicalResult
+BuildCallInstance::partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
+                                            PatternRewriter &rewriter) const {
+  funcOp.walk([&](mlir::func::CallOp callOp){
+    ComponentOp componentOp = getCallComponent(callOp);
+    SmallVector<Type, 8> resultTypes;
+    for (auto type : componentOp.getArgumentTypes())
+      resultTypes.push_back(type);
+    for (auto type : componentOp.getResultTypes())
+      resultTypes.push_back(type);
+    std::string instanceName = callOp.getCallee().str() + "_instance";
+    if (!getState().getInstance(instanceName)) {
+      InstanceOp instanceOp = createInstance(callOp.getLoc(), rewriter, getComponent(), resultTypes, instanceName, componentOp.getName());
+      getState().addInstance(instanceName, instanceOp);
+      hw::ConstantOp constantOp = createConstant(callOp.getLoc(), rewriter, getComponent(), 1, 1);
+      OpBuilder::InsertionGuard g(rewriter);
+      rewriter.setInsertionPointToStart(getComponent().getWiresOp().getBodyBlock());
+      calyx::GroupOp groupOp = rewriter.create<calyx::GroupOp>(callOp.getLoc(), "init_" + instanceName);
+      rewriter.setInsertionPointToStart(groupOp.getBodyBlock());
+      auto portInfos = instanceOp.getReferencedComponent().getPortInfo();
+      auto results = instanceOp.getResults();
+      for (auto [portInfo, result] : llvm::zip(portInfos, results)) {
+        if (portInfo.hasAttribute("go")) 
+          rewriter.create<calyx::AssignOp>(callOp.getLoc(), result, constantOp);
+        else if (portInfo.hasAttribute("reset"))
+          rewriter.create<calyx::AssignOp>(callOp.getLoc(), result, constantOp);
+        else if (portInfo.hasAttribute("done"))
+          rewriter.create<calyx::GroupDoneOp>(callOp.getLoc(), result);
+      }
+    }
+    WalkResult::advance();
+  }); 
+  return success();
+}
+
+ComponentOp
+BuildCallInstance::getCallComponent(mlir::func::CallOp callOp) const {
+  StringRef callee = callOp.getCallee();
+  for (auto [funcOp, componentOp] : functionMapping) {
+      if (funcOp.getSymName() == callee)
+        return componentOp;
+  }
+  return nullptr;
 }
 
 } // namespace calyx

@@ -34,6 +34,12 @@ hw::ConstantOp createConstant(Location loc, OpBuilder &builder,
                               ComponentOp component, size_t width,
                               size_t value);
 
+calyx::InstanceOp createInstance(Location loc, OpBuilder &builder,
+                                 ComponentOp component,
+                                 SmallVectorImpl<Type> &resultTypes,
+                                 std::string &instanceName,
+                                 StringRef componentName);
+
 // Returns whether this operation is a leaf node in the Calyx control.
 // TODO(github.com/llvm/circt/issues/1679): Add Invoke.
 bool isControlLeafNode(Operation *op);
