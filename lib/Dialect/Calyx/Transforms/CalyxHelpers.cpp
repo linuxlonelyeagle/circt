@@ -43,10 +43,9 @@ calyx::InstanceOp createInstance(Location loc, OpBuilder &builder,
                                  StringRef componentName) {
   OpBuilder::InsertionGuard g(builder);
   builder.setInsertionPointToStart(component.getBodyBlock());
-  return builder.create<InstanceOp>(loc, resultTypes, instanceName, componentName);
+  return builder.create<InstanceOp>(loc, resultTypes, instanceName,
+                                    componentName);
 }
-
-
 
 bool isControlLeafNode(Operation *op) { return isa<calyx::EnableOp>(op); }
 

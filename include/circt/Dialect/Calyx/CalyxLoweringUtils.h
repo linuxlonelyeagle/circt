@@ -27,8 +27,6 @@
 #include "mlir/IR/PatternMatch.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/TypeSwitch.h"
-#include "llvm/ADT/StringMap.h"
-
 #include <variant>
 
 namespace circt {
@@ -394,9 +392,11 @@ public:
   /// Get the output port index of this component for which the funcReturnIdx of
   /// the original function maps to.
   unsigned getFuncOpResultMapping(unsigned funcReturnIdx);
-  
+
+  /// The instance is obtained from the name of the callee.
   InstanceOp getInstance(StringRef calleeName);
 
+  /// Put the name of the callee and the instance of the call into map.
   void addInstance(StringRef calleeName, InstanceOp instanceOp);
 
   /// Return the group which evaluates the value v. Optionally, caller may
@@ -458,6 +458,7 @@ private:
   /// output port indices of this componentOp.
   DenseMap<unsigned, unsigned> funcOpResultMapping;
 
+  /// A mapping between the callee and the instance.
   llvm::StringMap<calyx::InstanceOp> instanceMap;
 };
 
@@ -741,16 +742,16 @@ class BuildReturnRegs : public calyx::FuncOpPartialLoweringPattern {
                            PatternRewriter &rewriter) const override;
 };
 
+/// Builds instance for the calyx.invoke and calyx.group in order to initialize
+/// the instance.
 class BuildCallInstance : public calyx::FuncOpPartialLoweringPattern {
   using FuncOpPartialLoweringPattern::FuncOpPartialLoweringPattern;
 
   LogicalResult
   partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
                            PatternRewriter &rewriter) const override;
-  ComponentOp
-  getCallComponent(mlir::func::CallOp callOp) const;
+  ComponentOp getCallComponent(mlir::func::CallOp callOp) const;
 };
-
 
 } // namespace calyx
 } // namespace circt

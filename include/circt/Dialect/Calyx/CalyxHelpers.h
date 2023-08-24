@@ -33,7 +33,7 @@ calyx::RegisterOp createRegister(Location loc, OpBuilder &builder,
 hw::ConstantOp createConstant(Location loc, OpBuilder &builder,
                               ComponentOp component, size_t width,
                               size_t value);
-
+/// A helper function to create calyx.instance operation.
 calyx::InstanceOp createInstance(Location loc, OpBuilder &builder,
                                  ComponentOp component,
                                  SmallVectorImpl<Type> &resultTypes,
