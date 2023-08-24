@@ -1044,15 +1044,17 @@ struct FuncOpConversion : public calyx::FuncOpPartialLoweringPattern {
     calyx::addMandatoryComponentPorts(rewriter, ports);
 
     /// Create a calyx::ComponentOp corresponding to the to-be-lowered function.
-    std::string componentName = "comp." + funcOp.getSymName().str();
     auto compOp = rewriter.create<calyx::ComponentOp>(
-        funcOp.getLoc(), rewriter.getStringAttr(componentName), ports);
+        funcOp.getLoc(), rewriter.getStringAttr(funcOp.getSymName()), ports);
 
+    std::string funcName = "func_" + funcOp.getSymName().str();
+    funcOp.setSymName(funcName);
     /// Mark this component as the toplevel.
     compOp->setAttr("toplevel", rewriter.getUnitAttr());
 
     /// Store the function-to-component mapping.
     functionMapping[funcOp] = compOp;
+
     auto *compState = loweringState().getState<ComponentLoweringState>(compOp);
     compState->setFuncOpResultMapping(funcOpResultMapping);
 

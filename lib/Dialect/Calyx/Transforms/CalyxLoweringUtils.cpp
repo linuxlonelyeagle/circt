@@ -806,7 +806,7 @@ BuildCallInstance::partiallyLowerFuncToComp(mlir::func::FuncOp funcOp,
 
 ComponentOp
 BuildCallInstance::getCallComponent(mlir::func::CallOp callOp) const {
-  StringRef callee = callOp.getCallee();
+  std::string callee = "func_" + callOp.getCallee().str();
   for (auto [funcOp, componentOp] : functionMapping) {
     if (funcOp.getSymName() == callee)
       return componentOp;
